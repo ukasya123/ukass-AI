@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ukas AI - Gemini</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .container {
+    background: #fff;
+    width: 100%;
+    max-width: 720px;
+    border-radius: 18px;
+    box-shadow: 0 25px 70px rgba(0,0,0,0.45);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    height: 88vh;
+  }
+  header {
+    background: linear-gradient(135deg, #0f2027, #2c5364);
+    color: white;
+    padding: 18px 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  header .logo {
+    width: 42px; height: 42px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #4285F4, #34A853);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.3rem; font-weight: 800;
+  }
+  header h1 { font-size: 1.25rem; font-weight: 700; letter-spacing: 0.5px; }
+  header small { display: block; font-size: 0.75rem; opacity: 0.75; font-weight: 400; }
+
+  .chat {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    background: #f7f9fc;
+  }
+  .msg {
+    max-width: 82%;
+    padding: 12px 16px;
+    border-radius: 14px;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-size: 0.95rem;
+    animation: fadeIn 0.25s ease;
+  }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  .user {
+    align-self: flex-end;
+    background: linear-gradient(135deg, #0072ff, #00c6ff);
+    color: white;
+    border-bottom-right-radius: 4px;
+  }
+  .ai {
+    align-self: flex-start;
+    background: #fff;
+    color: #222;
+    border: 1px solid #e3e9f0;
+    border-bottom-left-radius: 4px;
+  }
+  .typing { font-style: italic; color: #888; }
+
+  .input-area {
+    display: flex;
+    padding: 14px 16px;
+    background: #fff;
+    border-top: 1px solid #e3e9f0;
+    gap: 10px;
+  }
+  .input-area textarea {
+    flex: 1;
+    padding: 12px;
+    border: 1px solid #c5cdd6;
+    border-radius: 10px;
+    resize: none;
+    font-family: inherit;
+    font-size: 0.95rem;
+    outline: none;
+    height: 48px;
+  }
+  .input-area textarea:focus { border-color: #4285F4; }
+  .input-area button {
+    padding: 0 26px;
+    background: #4285F4;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 1rem;
+  }
+  .input-area button:hover { background: #3367D6; }
+  .input-area button:disabled { background: #a9b8c7; cursor: not-allowed; }
+
+  .footer-note {
+    text-align: center;
+    font-size: 0.72rem;
+    color: #8b98a7;
+    padding: 6px 0 12px;
+    background: #fff;
+  }
+</style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="logo">U</div>
+      <div>
+        <h1>Ukas AI</h1>
+        <small>Powered by Google AI Studio</small>
+      </div>
+    </header>
+
+    <div class="chat" id="chat">
+      <div class="msg ai">Halo! Saya Ukas AI 👋 . Ada yang bisa saya bantu?</div>
+    </div>
+
+    <div class="input-area">
+      <textarea id="input" placeholder="Ketik pesan untuk Ukas AI..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();send();}"></textarea>
+      <button id="sendBtn" onclick="send()">Kirim</button>
+    </div>
+    <div class="footer-note">Ukas AI · Google AI Studio</div>
+  </div>
+
+<script>
+/* ============================================================
+   ⚠️ MASUKKAN API KEY GOOGLE AI STUDIO ANDA DI BAWAH INI
+   (Diawali dengan huruf "AIza...")
+   ============================================================ */
+  
+const API_KEY = "AQ.Ab8RN6JP3y01zZWu0MSgUah2BpJIl981JNMPciI3jQTd5FHTAA";
+// Model Gemini yang digunakan (gemini-3.5-flash sangat cepat dan gratis)
+const MODEL = "gemini-3.5-flash";
+const SYSTEM_PROMPT = "Anda adalah Ukas AI, asisten AI yang ramah, cerdas, dan membantu. Jawab dengan jelas dalam bahasa yang sama dengan pengguna.";
+
+/* ============================================================ */
+const chatEl = document.getElementById('chat');
+const inputEl = document.getElementById('input');
+const sendBtn = document.getElementById('sendBtn');
+let history = [];
+
+function addMessage(text, sender) {
+  const div = document.createElement('div');
+  div.className = 'msg ' + sender;
+  div.textContent = text;
+  chatEl.appendChild(div);
+  chatEl.scrollTop = chatEl.scrollHeight;
+  return div;
+}
+
+// PERHATIKAN: Ada kata "async" di sini agar bisa menggunakan "await"
+async function send() {
+  const text = inputEl.value.trim();
+  if (!text) return;
+
+  // Pengecekan API Key yang sudah diperbaiki
+  if (!API_KEY || API_KEY === "MASUKKAN_API_KEY_ANDA_DI_SINI" || API_KEY.trim() === "") {
+    alert("API key belum diisi! Buka file index.html dan ganti const API_KEY dengan key dari Google AI Studio.");
+    return;
+  }
+
+  addMessage(text, 'user');
+  inputEl.value = '';
+  sendBtn.disabled = true;
+
+  const loadingMsg = addMessage('Ukas AI sedang mengetik...', 'ai');
+  loadingMsg.classList.add('typing');
+
+  // Format riwayat chat untuk Google Gemini API
+  history.push({ role: "user", parts: [{ text: text }] });
+
+  try {
+    // Endpoint API Google Gemini
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${API_KEY}`;
+    
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        systemInstruction: {
+          parts: [{ text: SYSTEM_PROMPT }]
+        },
+        contents: history
+      })
+    });
+
+    const data = await res.json();
+
+    // Cek jika ada error dari server Google
+    if (data.error) {
+      loadingMsg.textContent = '❌ Error: ' + data.error.message;
+      loadingMsg.classList.remove('typing');
+      history.pop(); // Hapus pesan terakhir dari history jika gagal
+    } else {
+      // Ambil balasan dari Gemini
+      const reply = data.candidates[0].content.parts[0].text;
+      loadingMsg.textContent = reply;
+      loadingMsg.classList.remove('typing');
+      
+      // Simpan balasan ke riwayat agar AI ingat konteks percakapan
+      history.push({ role: "model", parts: [{ text: reply }] });
+    }
+  } catch (err) {
+    loadingMsg.textContent = '❌ Gagal terhubung: ' + err.message;
+    loadingMsg.classList.remove('typing');
+    history.pop();
+  }
+
+  sendBtn.disabled = false;
+  inputEl.focus();
+}
+</script>
+</body>
+</html>
